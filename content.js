@@ -1,4 +1,3 @@
-// Enhanced content.js with Claude integration
 function addDownloadButton() {
   if (document.getElementById('transcript-buttons-container')) return;
 
@@ -18,12 +17,12 @@ function addDownloadButton() {
     flex-wrap: wrap;
   `;
 
-  // Download button
-  const downloadBtn = document.createElement('button');
-  downloadBtn.id = 'transcript-download-btn';
-  downloadBtn.innerHTML = '📥 Download';
-  downloadBtn.style.cssText = getButtonStyle('#ff0000', '#cc0000');
-  downloadBtn.onclick = downloadTranscript;
+  // Copy to clipboard button (previously download)
+  const copyBtn = document.createElement('button');
+  copyBtn.id = 'transcript-copy-btn';
+  copyBtn.innerHTML = '📋 Copy Transcript';
+  copyBtn.style.cssText = getButtonStyle('#28a745', '#218838');
+  copyBtn.onclick = copyTranscriptHandler;
   
   // Send to Claude button
   const claudeBtn = document.createElement('button');
@@ -32,7 +31,7 @@ function addDownloadButton() {
   claudeBtn.style.cssText = getButtonStyle('#1a5490', '#14406d');
   claudeBtn.onclick = sendToClaudeHandler;
   
-  buttonContainer.appendChild(downloadBtn);
+  buttonContainer.appendChild(copyBtn);
   buttonContainer.appendChild(claudeBtn);
   
   // Add container after description
@@ -60,6 +59,28 @@ function getButtonStyle(bgColor, hoverColor) {
     align-items: center;
     gap: 4px;
   `;
+}
+
+async function copyTranscriptHandler() {
+  try {
+    // Extract transcript
+    const transcript = await getTranscriptText();
+    
+    if (!transcript) {
+      alert('No transcript available for this video');
+      return;
+    }
+    
+    // Just copy to clipboard - no download
+    await navigator.clipboard.writeText(transcript);
+    
+    // Show notification
+    showNotification('✅ Transcript copied to clipboard!');
+    
+  } catch (error) {
+    console.error('Error copying transcript:', error);
+    alert('Failed to copy transcript. Please try again.');
+  }
 }
 
 async function sendToClaudeHandler() {
@@ -93,25 +114,18 @@ Please summarize this video transcript for me.`;
     window.open('https://claude.ai/new', '_blank');
     
     // Show notification
-    showNotification('Transcript copied to clipboard! Paste it in Claude and ask for a summary.');
+    showNotification('✅ Transcript copied! Paste in Claude with Ctrl+V');
     
   } catch (error) {
     console.error('Error sending to Claude:', error);
-    // Fallback if clipboard fails
-    const transcriptBlob = await getTranscriptBlob();
-    if (transcriptBlob) {
-      // Download the file and open Claude
-      downloadFile(transcriptBlob, 'transcript_for_claude.txt');
-      window.open('https://claude.ai/new', '_blank');
-      showNotification('Transcript downloaded! Upload the file to Claude and ask for a summary.');
-    }
+    showNotification('❌ Failed to copy. Try the Copy button first.');
   }
 }
 
 async function getTranscriptText() {
   // Open transcript if needed
   const transcriptBtn = document.querySelector('[aria-label="Show transcript"]');
-  if (transcriptBtn) {
+  if (transcriptBtn && !transcriptBtn.getAttribute('aria-pressed')) {
     transcriptBtn.click();
     await new Promise(r => setTimeout(r, 1500));
   }
@@ -130,43 +144,6 @@ async function getTranscriptText() {
   return transcript;
 }
 
-async function getTranscriptBlob() {
-  const transcript = await getTranscriptText();
-  if (!transcript) return null;
-  
-  const videoTitle = document.querySelector('#title h1')?.textContent || 'YouTube Video';
-  const videoUrl = window.location.href;
-  
-  const content = `Video: ${videoTitle}
-URL: ${videoUrl}
-
-Transcript:
-
-${transcript}`;
-  
-  return new Blob([content], { type: 'text/plain' });
-}
-
-async function downloadTranscript() {
-  const blob = await getTranscriptBlob();
-  if (!blob) {
-    alert('No transcript available for this video');
-    return;
-  }
-  
-  const videoId = new URLSearchParams(window.location.search).get('v');
-  downloadFile(blob, `transcript_${videoId}.txt`);
-}
-
-function downloadFile(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 function showNotification(message) {
   const notification = document.createElement('div');
   notification.style.cssText = `
@@ -181,17 +158,18 @@ function showNotification(message) {
     font-size: 14px;
     max-width: 300px;
     animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   `;
   
   notification.innerHTML = message;
   document.body.appendChild(notification);
   
-  // Auto-remove after 5 seconds
+  // Auto-remove after 3 seconds
   setTimeout(() => {
     notification.style.opacity = '0';
     notification.style.transition = 'opacity 0.3s';
     setTimeout(() => notification.remove(), 300);
-  }, 5000);
+  }, 3000);
 }
 
 // Initialize
@@ -219,8 +197,8 @@ function init() {
 document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.innerHTML = `
-    #transcript-download-btn:hover {
-      background: #cc0000 !important;
+    #transcript-copy-btn:hover {
+      background: #218838 !important;
     }
     #send-to-claude-btn:hover {
       background: #14406d !important;
