@@ -1,0 +1,114 @@
+function addDownloadButton() {
+  if (document.getElementById('transcript-download-btn')) return;
+
+  const secondary = document.querySelector('#secondary');
+  if (!secondary) {
+    setTimeout(addDownloadButton, 1000);
+    return;
+  }
+
+  const btn = document.createElement('button');
+  btn.id = 'transcript-download-btn';
+  btn.innerHTML = '📥 Download Transcript';
+  btn.style.cssText = `
+    background: #ff0000; 
+    color: white; 
+    border: none; 
+    padding: 8px 16px;
+    margin: 8px 0 8px 8px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-size: 13px; 
+    font-weight: bold; 
+    position: relative;
+    z-index: 100;
+    display: block;
+    width: auto;
+    transition: all 0.3s ease;
+  `;
+  
+  btn.onmouseover = () => {
+    btn.style.background = '#cc0000';
+  };
+  
+  btn.onmouseout = () => {
+    btn.style.background = '#ff0000';
+  };
+  
+  btn.onclick = downloadTranscript;
+  
+  // Add button after the notifications area, not before
+  const metaContents = secondary.querySelector('#meta-contents');
+  if (metaContents) {
+    metaContents.insertBefore(btn, metaContents.querySelector('#description'));
+  } else {
+    // Fallback to adding below any existing content
+    const insertPoint = secondary.querySelector('#owner') || secondary.firstChild;
+    secondary.insertBefore(btn, insertPoint);
+  }
+}
+
+async function downloadTranscript() {
+  const videoId = new URLSearchParams(window.location.search).get('v');
+  
+  // Open transcript if needed
+  const transcriptBtn = document.querySelector('[aria-label="Show transcript"]');
+  if (transcriptBtn) {
+    transcriptBtn.click();
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  
+  // Get transcript items
+  const items = document.querySelectorAll('ytd-transcript-segment-renderer');
+  if (!items.length) {
+    alert('No transcript available for this video');
+    return;
+  }
+  
+  let transcript = '';
+  items.forEach(item => {
+    const time = item.querySelector('.segment-timestamp')?.textContent?.trim() || '';
+    const text = item.querySelector('.segment-text')?.textContent?.trim() || '';
+    if (text) transcript += `[${time}] ${text}\n`;
+  });
+  
+  // Download
+  const blob = new Blob([transcript], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transcript_${videoId}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Initialize with better placement
+function init() {
+  addDownloadButton();
+  
+  // Re-add button when URL changes
+  let lastUrl = location.href;
+  new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      setTimeout(addDownloadButton, 2000);
+    }
+  }).observe(document, { subtree: true, childList: true });
+  
+  // Periodically check if button exists
+  setInterval(() => {
+    if (!document.getElementById('transcript-download-btn')) {
+      addDownloadButton();
+    }
+  }, 5000);
+}
+
+// Start
+if (document.readyState === 'complete') {
+  init();
+} else {
+  window.addEventListener('load', init);
+}
+
+// Also add after a delay for YouTube's dynamic loading
+setTimeout(init, 3000);
