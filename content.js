@@ -93,17 +93,22 @@ async function sendToClaudeHandler() {
   try {
     // Extract transcript
     const transcript = await getTranscriptText();
+    console.log('[DEBUG] Transcript extracted, continuing...');
     
     if (!transcript) {
+      console.log('[DEBUG] No transcript, showing alert');
       alert('No transcript available for this video');
       return;
     }
     
+    console.log('[DEBUG] Getting video details...');
     // Prepare the text for Claude
     const videoId = new URLSearchParams(window.location.search).get('v');
     const videoTitle = document.querySelector('#title h1')?.textContent || 'YouTube Video';
     const videoUrl = window.location.href;
+    console.log('[DEBUG] Video details:', { videoId, videoTitle: videoTitle?.substring(0, 50), videoUrl: videoUrl?.substring(0, 50) });
     
+    console.log('[DEBUG] Preparing Claude text...');
     const claudeText = `Video: ${videoTitle}
 URL: ${videoUrl}
 
@@ -113,16 +118,45 @@ ${transcript}
 
 Please summarize this video transcript for me.`;
     
-    // Copy to clipboard
-    await navigator.clipboard.writeText(claudeText);
+    console.log('[DEBUG] Claude text prepared, length:', claudeText.length);
+    
+    // Copy to clipboard with timeout
+    console.log('[DEBUG] About to copy', claudeText.length, 'characters to clipboard...');
+    try {
+      // Add timeout to clipboard operation
+      const clipboardPromise = navigator.clipboard.writeText(claudeText);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Clipboard timeout')), 5000)
+      );
+      
+      await Promise.race([clipboardPromise, timeoutPromise]);
+      console.log('[DEBUG] ✅ Clipboard copy successful');
+    } catch (clipboardError) {
+      console.error('[DEBUG] ❌ Clipboard error:', clipboardError);
+      // Continue anyway, don't throw
+      console.log('[DEBUG] Continuing despite clipboard error...');
+    }
     
     // Open Claude
-    window.open('https://claude.ai/new', '_blank');
+    console.log('[DEBUG] About to open Claude tab...');
+    try {
+      const claudeWindow = window.open('https://claude.ai/new', '_blank');
+      if (claudeWindow) {
+        console.log('[DEBUG] ✅ Claude tab opened successfully');
+      } else {
+        console.log('[DEBUG] ❌ Claude tab blocked by popup blocker');
+      }
+    } catch (windowError) {
+      console.error('[DEBUG] ❌ Window open error:', windowError);
+    }
     
     // Show notification
+    console.log('[DEBUG] Showing notification...');
     showNotification('✅ Transcript copied! Paste in Claude with Ctrl+V');
+    console.log('[DEBUG] Function complete!');
     
   } catch (error) {
+    console.error('[DEBUG] Error in sendToClaudeHandler:', error);
     console.error('Error sending to Claude:', error);
     showNotification('❌ Failed to copy. Try the Copy button first.');
   }
