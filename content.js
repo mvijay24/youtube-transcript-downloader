@@ -66,6 +66,7 @@ function getButtonStyle(bgColor, hoverColor) {
 }
 
 async function copyTranscriptHandler() {
+  console.log('[DEBUG] Copy button clicked');
   try {
     // Extract transcript
     const transcript = await getTranscriptText();
@@ -88,6 +89,7 @@ async function copyTranscriptHandler() {
 }
 
 async function sendToClaudeHandler() {
+  console.log('[DEBUG] Claude button clicked');
   try {
     // Extract transcript
     const transcript = await getTranscriptText();
@@ -127,24 +129,41 @@ Please summarize this video transcript for me.`;
 }
 
 async function getTranscriptText() {
+  console.log('[DEBUG] Starting transcript extraction...');
+  
   // Open transcript if needed
   const transcriptBtn = document.querySelector('[aria-label="Show transcript"]');
+  console.log('[DEBUG] Transcript button found:', !!transcriptBtn);
+  
   if (transcriptBtn && !transcriptBtn.getAttribute('aria-pressed')) {
+    console.log('[DEBUG] Clicking transcript button...');
     transcriptBtn.click();
+    console.log('[DEBUG] Waiting 1.5 seconds...');
     await new Promise(r => setTimeout(r, 1500));
+    console.log('[DEBUG] Wait complete');
+  } else {
+    console.log('[DEBUG] Transcript panel already open or button not found');
   }
   
   // Get transcript items
+  console.log('[DEBUG] Looking for transcript items...');
   const items = document.querySelectorAll('ytd-transcript-segment-renderer');
-  if (!items.length) return null;
+  console.log('[DEBUG] Found', items.length, 'transcript items');
+  
+  if (!items.length) {
+    console.log('[DEBUG] No transcript items found, returning null');
+    return null;
+  }
   
   let transcript = '';
-  items.forEach(item => {
+  items.forEach((item, index) => {
     const time = item.querySelector('.segment-timestamp')?.textContent?.trim() || '';
     const text = item.querySelector('.segment-text')?.textContent?.trim() || '';
     if (text) transcript += `[${time}] ${text}\n`;
+    if (index < 3) console.log(`[DEBUG] Item ${index}:`, time, text?.substring(0, 50));
   });
   
+  console.log('[DEBUG] Final transcript length:', transcript.length);
   return transcript;
 }
 
